@@ -10,7 +10,7 @@
         "lon_west": 67.0520
       },
       "grid_size_km2": 0.5,
-      "grid_count": 5
+      "grid_count": 12
     }
   ],
   "categories": ["Gym", "Cafe"]

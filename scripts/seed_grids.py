@@ -150,7 +150,8 @@ def main() -> None:
 
         rows = []
         for idx, cell in enumerate(cells, start=1):
-            grid_id = f"{nh_id}-Cell-{idx:02d}"
+            # Use canonical numeric grid IDs to match generator output: grid-0001, grid-0002, ...
+            grid_id = f"grid-{idx:04d}"
             centroid_lat = (cell["min_lat"] + cell["max_lat"]) / 2.0
             centroid_lon = (cell["min_lon"] + cell["max_lon"]) / 2.0
             # approximate area using equirectangular small-box method
