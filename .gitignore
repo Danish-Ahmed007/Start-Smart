@@ -1,0 +1,8 @@
+__pycache__/
+.env
+venv/
+*.pyc
+.pytest_cache/
+.coverage
+data/raw/
+data/synthetic/

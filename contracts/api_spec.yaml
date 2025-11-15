@@ -1,0 +1,535 @@
+openapi: 3.0.3
+info:
+  title: StartSmart Phase 0 - Part 1 API (Contracts)
+  version: 1.0.0
+  description: "Locked Phase 0 - Part 1 API contracts for StartSmart MVP. Do not change without updating Phase 0 spec."
+servers:
+  - url: https://api.startsmart.example.com/v1
+
+paths:
+  /neighborhoods:
+    get:
+      summary: List neighborhoods
+      description: Returns a list of known neighborhoods and basic metadata.
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Optional search term to filter neighborhoods by name
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+          description: Maximum number of neighborhoods to return
+      responses:
+        '200':
+          description: A list of neighborhoods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Neighborhood'
+              examples:
+                example-1:
+                  value:
+                    - id: "nhood-001"
+                      name: "Downtown Central"
+                      grid_count: 42
+                      centroid:
+                        lat: 37.7749
+                        lon: -122.4194
+                    - id: "nhood-002"
+                      name: "River Park"
+                      grid_count: 18
+                      centroid:
+                        lat: 37.7840
+                        lon: -122.4090
+
+  /grids:
+    get:
+      summary: List grid cells
+      description: Returns grid cells. Can be filtered by neighborhood or bounding box.
+      parameters:
+        - in: query
+          name: neighborhood
+          schema:
+            type: string
+          description: Neighborhood ID or name to filter grids
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+        - in: query
+          name: bbox
+          schema:
+            type: string
+          description: Bounding box in the format "min_lon,min_lat,max_lon,max_lat"
+      responses:
+        '200':
+          description: A list of grid cell records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GridCell'
+              examples:
+                example-1:
+                  value:
+                    - grid_id: "grid-0001"
+                      neighborhood: "Downtown Central"
+                      min_lat: 37.7700
+                      max_lat: 37.7750
+                      min_lon: -122.4230
+                      max_lon: -122.4180
+                      area_km2: 0.25
+                      centroid_lat: 37.7725
+                      centroid_lon: -122.4205
+
+  /recommendations:
+    get:
+      summary: Get recommendations for a grid or location
+      description: Returns recommended categories and top businesses for a location.
+      parameters:
+        - in: query
+          name: grid_id
+          schema:
+            type: string
+          description: Optional grid identifier to request recommendations for
+        - in: query
+          name: lat
+          schema:
+            type: number
+            format: double
+          description: Latitude if grid_id not provided
+        - in: query
+          name: lon
+          schema:
+            type: number
+            format: double
+          description: Longitude if grid_id not provided
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: Optional category to bias recommendations
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Recommendation results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationsResponse'
+              examples:
+                example-1:
+                  value:
+                    grid_id: "grid-0001"
+                    recommendations:
+                      - category: "coffee"
+                        score: 0.92
+                        business:
+                          business_id: "biz-100"
+                          name: "Central Perk Coffee"
+                          lat: 37.7729
+                          lon: -122.4201
+                          rating: 4.7
+                          review_count: 842
+                      - category: "bakery"
+                        score: 0.74
+                        business:
+                          business_id: "biz-107"
+                          name: "Riverside Bakery"
+                          lat: 37.7731
+                          lon: -122.4212
+                          rating: 4.5
+                          review_count: 315
+
+  /grid/{grid_id}:
+    get:
+      summary: Get grid details
+      description: Returns a grid cell with related businesses, metrics and top posts.
+      parameters:
+        - in: path
+          name: grid_id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Grid detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GridDetail'
+              examples:
+                example-1:
+                  value:
+                    grid:
+                      grid_id: "grid-0001"
+                      neighborhood: "Downtown Central"
+                      min_lat: 37.7700
+                      max_lat: 37.7750
+                      min_lon: -122.4230
+                      max_lon: -122.4180
+                      area_km2: 0.25
+                      centroid_lat: 37.7725
+                      centroid_lon: -122.4205
+                    businesses:
+                      - business_id: "biz-100"
+                        name: "Central Perk Coffee"
+                        lat: 37.7729
+                        lon: -122.4201
+                        category: "coffee"
+                        rating: 4.7
+                        review_count: 842
+                        source: "google"
+                        fetched_at: "2025-11-01T12:00:00Z"
+                    metrics:
+                      - id: 1
+                        category: "coffee"
+                        business_count: 12
+                        instagram_volume: 120
+                        reddit_mentions: 5
+                        gos: 0.82
+                        confidence: 0.88
+                        top_posts_json: [{"post_id":"p-1","text":"Great latte!","engagement_score":45}]
+                        competitors_json: [{"business_id":"biz-200","name":"Corner Cafe","rating":4.4}]
+                        last_updated: "2025-11-12T08:30:00Z"
+
+  /feedback:
+    post:
+      summary: Submit user feedback for a grid and category
+      description: Accepts feedback records and stores them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequest'
+            examples:
+              example-1:
+                value:
+                  grid_id: "grid-0001"
+                  category: "coffee"
+                  rating: 1
+                  comment: "Great area for coffee shops, lots of activity"
+                  user_email: "user@example.com"
+      responses:
+        '201':
+          description: Feedback created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackResponse'
+              examples:
+                example-1:
+                  value:
+                    id: 123
+                    grid_id: "grid-0001"
+                    category: "coffee"
+                    rating: 1
+                    comment: "Great area for coffee shops, lots of activity"
+                    user_email: "user@example.com"
+                    created_at: "2025-11-15T09:12:00Z"
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Neighborhood:
+      type: object
+      required: [id, name, grid_count, centroid]
+      properties:
+        id:
+          type: string
+          example: "nhood-001"
+        name:
+          type: string
+          example: "Downtown Central"
+        grid_count:
+          type: integer
+          example: 42
+        centroid:
+          type: object
+          properties:
+            lat:
+              type: number
+              format: double
+              example: 37.7749
+            lon:
+              type: number
+              format: double
+              example: -122.4194
+
+    GridCell:
+      type: object
+      required: [grid_id, neighborhood, min_lat, max_lat, min_lon, max_lon]
+      properties:
+        grid_id:
+          type: string
+          example: "grid-0001"
+        neighborhood:
+          type: string
+          example: "Downtown Central"
+        min_lat:
+          type: number
+          format: double
+          example: 37.7700
+        max_lat:
+          type: number
+          format: double
+          example: 37.7750
+        min_lon:
+          type: number
+          format: double
+          example: -122.4230
+        max_lon:
+          type: number
+          format: double
+          example: -122.4180
+        area_km2:
+          type: number
+          example: 0.25
+        centroid_lat:
+          type: number
+          format: double
+          example: 37.7725
+        centroid_lon:
+          type: number
+          format: double
+          example: -122.4205
+
+    Business:
+      type: object
+      required: [business_id, name, lat, lon]
+      properties:
+        business_id:
+          type: string
+          example: "biz-100"
+        name:
+          type: string
+          example: "Central Perk Coffee"
+        lat:
+          type: number
+          format: double
+          example: 37.7729
+        lon:
+          type: number
+          format: double
+          example: -122.4201
+        category:
+          type: string
+          example: "coffee"
+        rating:
+          type: number
+          format: float
+          example: 4.7
+        review_count:
+          type: integer
+          example: 842
+        source:
+          type: string
+          example: "google"
+        fetched_at:
+          type: string
+          format: date-time
+          example: "2025-11-01T12:00:00Z"
+
+    SocialPost:
+      type: object
+      required: [post_id, source, timestamp]
+      properties:
+        post_id:
+          type: string
+          example: "p-100"
+        source:
+          type: string
+          example: "instagram"
+        text:
+          type: string
+          example: "Amazing latte at Central Perk! #coffee"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-11-12T08:15:00Z"
+        lat:
+          type: number
+          format: double
+          example: 37.7729
+        lon:
+          type: number
+          format: double
+          example: -122.4201
+        post_type:
+          type: string
+          example: "image"
+        engagement_score:
+          type: number
+          example: 45
+        is_simulated:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-11-12T08:16:00Z"
+
+    GridMetrics:
+      type: object
+      required: [id, grid_id]
+      properties:
+        id:
+          type: integer
+          example: 1
+        grid_id:
+          type: string
+          example: "grid-0001"
+        category:
+          type: string
+          example: "coffee"
+        business_count:
+          type: integer
+          example: 12
+        instagram_volume:
+          type: integer
+          example: 120
+        reddit_mentions:
+          type: integer
+          example: 5
+        gos:
+          type: number
+          example: 0.82
+        confidence:
+          type: number
+          example: 0.88
+        top_posts_json:
+          type: array
+          items:
+            $ref: '#/components/schemas/SocialPost'
+        competitors_json:
+          type: array
+          items:
+            type: object
+            properties:
+              business_id:
+                type: string
+              name:
+                type: string
+              rating:
+                type: number
+        last_updated:
+          type: string
+          format: date-time
+          example: "2025-11-12T08:30:00Z"
+
+    RecommendationsResponse:
+      type: object
+      properties:
+        grid_id:
+          type: string
+          example: "grid-0001"
+        recommendations:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+                example: "coffee"
+              score:
+                type: number
+                example: 0.92
+              business:
+                $ref: '#/components/schemas/Business'
+
+    GridDetail:
+      type: object
+      properties:
+        grid:
+          $ref: '#/components/schemas/GridCell'
+        businesses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Business'
+        metrics:
+          type: array
+          items:
+            $ref: '#/components/schemas/GridMetrics'
+        top_posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/SocialPost'
+
+    FeedbackRequest:
+      type: object
+      required: [grid_id, rating]
+      properties:
+        grid_id:
+          type: string
+          example: "grid-0001"
+        category:
+          type: string
+          example: "coffee"
+        rating:
+          type: integer
+          description: "Allowed values are -1 or 1"
+          example: 1
+        comment:
+          type: string
+          example: "Great area for coffee shops, lots of activity"
+        user_email:
+          type: string
+          format: email
+          example: "user@example.com"
+
+    FeedbackResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 123
+        grid_id:
+          type: string
+          example: "grid-0001"
+        category:
+          type: string
+          example: "coffee"
+        rating:
+          type: integer
+          example: 1
+        comment:
+          type: string
+          example: "Great area for coffee shops, lots of activity"
+        user_email:
+          type: string
+          format: email
+          example: "user@example.com"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-11-15T09:12:00Z"
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Bad Request"

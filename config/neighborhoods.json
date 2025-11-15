@@ -1,0 +1,17 @@
+{
+  "neighborhoods": [
+    {
+      "id": "dha-phase-2-karachi",
+      "name": "DHA Phase 2, Karachi",
+      "bounds": {
+        "lat_north": 24.8345,
+        "lat_south": 24.8210,
+        "lon_east": 67.0670,
+        "lon_west": 67.0520
+      },
+      "grid_size_km2": 0.5,
+      "grid_count": 5
+    }
+  ],
+  "categories": ["Gym", "Cafe"]
+}
