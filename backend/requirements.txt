@@ -15,6 +15,7 @@ python-dotenv==1.0.0
 
 # Geospatial Operations
 shapely==2.0.2
+numpy<2.0.0
 
 # Google Maps API
 googlemaps>=4.10.0
