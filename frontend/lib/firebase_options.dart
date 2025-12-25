@@ -38,7 +38,7 @@ class DefaultFirebaseOptions {
   // ============================================================
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAdaY623ZWvT-XheptPlUgKOk9VrABOo98',
+    apiKey: 'api_key_here',
     appId: '1:556461956404:web:35a9923c320ae334bdd961',
     messagingSenderId: '556461956404',
     projectId: 'start-smart-mvp',
