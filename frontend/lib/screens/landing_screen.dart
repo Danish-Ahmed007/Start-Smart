@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
+import '../services/analytics_service.dart';
 import '../utils/colors.dart';
 import 'enhanced_recommendation_screen.dart';
+import 'auth_screen.dart';
 
 /// Landing screen - Entry point for the app
 class LandingScreen extends ConsumerStatefulWidget {
@@ -13,7 +16,29 @@ class LandingScreen extends ConsumerStatefulWidget {
 
 class _LandingScreenState extends ConsumerState<LandingScreen> {
   @override
+  void initState() {
+    super.initState();
+    // Track screen view
+    analyticsService.trackScreenView(screenName: 'landing_screen');
+  }
+
+  Future<void> _handleLogout() async {
+    final authNotifier = ref.read(authNotifierProvider.notifier);
+    await authNotifier.signOut();
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const AuthScreen()),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final userName = ref.watch(userDisplayNameProvider);
+    final userEmail = ref.watch(userEmailProvider);
+    final userPhoto = ref.watch(userPhotoUrlProvider);
+    final isAnonymous = ref.watch(isAnonymousProvider);
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -29,7 +54,9 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 40),
+                // User info bar
+                _buildUserInfoBar(userName, userEmail, userPhoto, isAnonymous),
+                const SizedBox(height: 20),
 
                 // Logo and title
                 _buildHeader(),
@@ -49,6 +76,75 @@ class _LandingScreenState extends ConsumerState<LandingScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildUserInfoBar(String userName, String? userEmail, String? userPhoto, bool isAnonymous) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          // User avatar
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: Colors.white.withOpacity(0.3),
+            backgroundImage: userPhoto != null ? NetworkImage(userPhoto) : null,
+            child: userPhoto == null
+                ? Icon(
+                    isAnonymous ? Icons.person_outline : Icons.person,
+                    color: Colors.white,
+                    size: 24,
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          
+          // User info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  userName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                if (userEmail != null)
+                  Text(
+                    userEmail,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 12,
+                    ),
+                  )
+                else if (isAnonymous)
+                  Text(
+                    'Browsing as guest',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          
+          // Logout button
+          IconButton(
+            onPressed: _handleLogout,
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Sign out',
+          ),
+        ],
       ),
     );
   }

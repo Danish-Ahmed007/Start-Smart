@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -20,6 +21,10 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="StartSmart - Location Intelligence Platform">
 
+  <!-- Google Sign-In Client ID (get from Google Cloud Console) -->
+  <meta name="google-signin-client_id"
+    content="556461956404-onmpo14kf4oha6iuck5harskak1r1opr.apps.googleusercontent.com">
+
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -27,22 +32,27 @@
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png" />
 
-  <title>StartSmart</title>
+  <title>StartSmart</title>`
   <link rel="manifest" href="manifest.json">
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
   <!-- Load environment config (contains API key) -->
   <script src="env.js"></script>
-  
+
   <!-- Google Maps JavaScript API - Key loaded from env.js -->
   <script>
     // Load Google Maps with API key from environment config
-    (function() {
-      var apiKey = (typeof ENV_CONFIG !== 'undefined' && ENV_CONFIG.GOOGLE_MAPS_API_KEY) 
-        ? ENV_CONFIG.GOOGLE_MAPS_API_KEY 
+    (function () {
+      var apiKey = (typeof ENV_CONFIG !== 'undefined' && ENV_CONFIG.GOOGLE_MAPS_API_KEY)
+        ? ENV_CONFIG.GOOGLE_MAPS_API_KEY
         : 'YOUR_GOOGLE_MAPS_API_KEY';
-      
+
       var script = document.createElement('script');
       script.src = 'https://maps.googleapis.com/maps/api/js?key=' + apiKey;
       script.async = true;
@@ -50,7 +60,9 @@
     })();
   </script>
 </head>
+
 <body>
   <script src="flutter_bootstrap.js" async></script>
 </body>
+
 </html>

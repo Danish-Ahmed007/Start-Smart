@@ -1,0 +1,103 @@
+{
+    "clifton_income_data": {
+        "Block2": {
+            "avg_household_income_pkr": 450000,
+            "median_income_pkr": 380000,
+            "income_bracket": "upper-middle",
+            "spending_power": "high",
+            "affordability_score": 0.85,
+            "key_demographics": [
+                "Professionals",
+                "Business Owners",
+                "Established Families"
+            ],
+            "economic_indicators": {
+                "premium_retail_presence": "high",
+                "car_ownership_rate": 0.78,
+                "dining_out_frequency": "3-4x per week",
+                "gym_membership_likelihood": 0.45,
+                "cafe_visit_frequency": "5-6x per week"
+            },
+            "consumer_behavior": {
+                "avg_meal_spending": 2500,
+                "avg_coffee_spending": 800,
+                "gym_budget_monthly": 12000,
+                "price_sensitivity": "low"
+            }
+        },
+        "Block5": {
+            "avg_household_income_pkr": 380000,
+            "median_income_pkr": 320000,
+            "income_bracket": "middle",
+            "spending_power": "moderate-high",
+            "affordability_score": 0.72,
+            "key_demographics": [
+                "Young Professionals",
+                "Students",
+                "Small Business Owners"
+            ],
+            "economic_indicators": {
+                "premium_retail_presence": "moderate",
+                "car_ownership_rate": 0.62,
+                "dining_out_frequency": "2-3x per week",
+                "gym_membership_likelihood": 0.52,
+                "cafe_visit_frequency": "4-5x per week"
+            },
+            "consumer_behavior": {
+                "avg_meal_spending": 1800,
+                "avg_coffee_spending": 600,
+                "gym_budget_monthly": 8000,
+                "price_sensitivity": "moderate"
+            }
+        }
+    },
+    "sector_boundaries": {
+        "Block2": {
+            "name": "Clifton Block 2",
+            "center": {
+                "lat": 24.8160,
+                "lon": 67.0280
+            },
+            "bounds": {
+                "north": 24.8220,
+                "south": 24.8100,
+                "east": 67.0360,
+                "west": 67.0200
+            }
+        },
+        "Block5": {
+            "name": "Clifton Block 5",
+            "center": {
+                "lat": 24.8070,
+                "lon": 67.0380
+            },
+            "bounds": {
+                "north": 24.8130,
+                "south": 24.8010,
+                "east": 67.0440,
+                "west": 67.0320
+            }
+        }
+    },
+    "combined_area": {
+        "center": {
+            "lat": 24.8115,
+            "lon": 67.0330
+        },
+        "bounds": {
+            "southwest": {
+                "lat": 24.8010,
+                "lon": 67.0200
+            },
+            "northeast": {
+                "lat": 24.8220,
+                "lon": 67.0440
+            }
+        },
+        "approx_area_km2": 0.55
+    },
+    "data_source": "Synthetic data based on Clifton area demographics and economic surveys",
+    "methodology": "Estimated from Pakistan Bureau of Statistics, real estate pricing, and local market research",
+    "last_updated": "2024-12",
+    "disclaimer": "This is synthetic data for MVP demonstration. Replace with official government statistics for production."
+}

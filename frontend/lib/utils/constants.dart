@@ -33,6 +33,7 @@ class ApiConstants {
   static const String recommendationFast = '/recommendation_fast';
   static const String recommendationLLM = '/recommendation_llm';
   static const String recommendationDebug = '/recommendation_debug';
+  static const String recommendationEnhanced = '/recommendation_enhanced';
 
   // Full URL helpers
   static String get neighborhoodsUrl => '$baseUrl$neighborhoods';
@@ -46,6 +47,8 @@ class ApiConstants {
   static String get recommendationFastUrl => '$baseUrl$recommendationFast';
   static String get recommendationLLMUrl => '$baseUrl$recommendationLLM';
   static String get recommendationDebugUrl => '$baseUrl$recommendationDebug';
+  static String get recommendationEnhancedUrl =>
+      '$baseUrl$recommendationEnhanced';
 
   // Timeouts
   static const Duration connectionTimeout = Duration(seconds: 30);

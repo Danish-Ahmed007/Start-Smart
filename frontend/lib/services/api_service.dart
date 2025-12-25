@@ -274,6 +274,42 @@ class ApiService {
     }
   }
 
+  /// Get ENHANCED recommendation with income data and area analysis
+  /// This is the most comprehensive analysis endpoint
+  Future<EnhancedRecommendationFull> getEnhancedRecommendation({
+    required double lat,
+    required double lon,
+    int radius = 200,
+  }) async {
+    try {
+      final uri = Uri.parse(ApiConstants.recommendationEnhancedUrl).replace(
+        queryParameters: {
+          'lat': lat.toString(),
+          'lon': lon.toString(),
+          'radius': radius.toString(),
+        },
+      );
+
+      // Enhanced requests include more processing
+      final response = await _client
+          .get(uri)
+          .timeout(const Duration(seconds: 90));
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        return EnhancedRecommendationFull.fromJson(data);
+      } else {
+        throw ApiException(
+          'Failed to fetch enhanced recommendation',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Network error: $e');
+    }
+  }
+
   /// Dispose the HTTP client
   void dispose() {
     _client.close();

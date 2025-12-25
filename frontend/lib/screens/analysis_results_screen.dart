@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/enhanced_recommendation.dart';
 import '../services/api_service.dart';
+import '../services/analytics_service.dart';
+
+// Analytics service instance (private to this file)
+final _analyticsService = AnalyticsService();
 
 /// Screen to display full analysis results with aesthetic blue theme
 class AnalysisResultsScreen extends StatefulWidget {
@@ -29,7 +33,11 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
   bool _isLoading = true;
   EnhancedRecommendation? _recommendation;
   String? _error;
-  
+
+  // Feedback state for BML tracking
+  bool _feedbackSubmitted = false;
+  bool? _isPositiveFeedback;
+
   // Animation controllers
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -87,11 +95,17 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.1),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic));
-    
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+
+    // Track screen view
+    _analyticsService.trackScreenView(screenName: 'analysis_results');
+
     _fetchRecommendation();
   }
 
@@ -126,6 +140,19 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
         _isLoading = false;
       });
       _animationController.forward();
+
+      // Track successful analysis completion
+      _analyticsService.trackAnalysisCompleted(
+        businessType: widget.businessType,
+        latitude: widget.latitude,
+        longitude: widget.longitude,
+        radius: widget.radius,
+        mode: widget.isLLMMode ? 'AI' : 'Fast',
+        gymScore: recommendation.gym.score,
+        cafeScore: recommendation.cafe.score,
+        recommendedType: recommendation.recommendation.bestCategory,
+        processingTimeMs: recommendation.processingTimeMs,
+      );
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -240,9 +267,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                   height: 100,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [_accentBlue, _lightBlue],
-                    ),
+                    gradient: LinearGradient(colors: [_accentBlue, _lightBlue]),
                     boxShadow: [
                       BoxShadow(
                         color: _accentBlue.withOpacity(0.4),
@@ -253,8 +278,8 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                   ),
                   child: Center(
                     child: Icon(
-                      widget.businessType == 'Gym' 
-                          ? Icons.fitness_center 
+                      widget.businessType == 'Gym'
+                          ? Icons.fitness_center
                           : Icons.coffee,
                       size: 48,
                       color: Colors.white,
@@ -266,7 +291,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
             onEnd: () => setState(() {}), // Restart animation
           ),
           const SizedBox(height: 40),
-          
+
           // Loading text with animation
           Text(
             widget.isLLMMode
@@ -289,7 +314,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
             ),
           ),
           const SizedBox(height: 32),
-          
+
           // Progress bar
           Container(
             width: 200,
@@ -323,7 +348,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
             ),
           ),
           const SizedBox(height: 40),
-          
+
           // Location info card
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 40),
@@ -338,7 +363,11 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.location_on, size: 20, color: Colors.white),
+                    const Icon(
+                      Icons.location_on,
+                      size: 20,
+                      color: Colors.white,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Clifton, Karachi',
@@ -409,7 +438,11 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                 shape: BoxShape.circle,
                 color: Colors.red.withOpacity(0.2),
               ),
-              child: const Icon(Icons.error_outline, size: 48, color: Colors.white),
+              child: const Icon(
+                Icons.error_outline,
+                size: 48,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -433,10 +466,16 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                 OutlinedButton.icon(
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  label: const Text('Go Back', style: TextStyle(color: Colors.white)),
+                  label: const Text(
+                    'Go Back',
+                    style: TextStyle(color: Colors.white),
+                  ),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Colors.white),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -447,7 +486,10 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: _primaryBlue,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ],
@@ -460,10 +502,12 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
 
   Widget _buildResultsView(EnhancedRecommendation rec) {
     // Get the score for the selected business type
-    final selectedScore = widget.businessType.toLowerCase() == 'gym' 
-        ? rec.gym 
+    final selectedScore = widget.businessType.toLowerCase() == 'gym'
+        ? rec.gym
         : rec.cafe;
-    final isGoodChoice = widget.businessType.toLowerCase() == rec.recommendation.bestCategory.toLowerCase();
+    final isGoodChoice =
+        widget.businessType.toLowerCase() ==
+        rec.recommendation.bestCategory.toLowerCase();
 
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -496,6 +540,10 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
 
               // 5. Processing info footer
               _buildProcessingInfo(rec),
+              const SizedBox(height: 20),
+
+              // 6. Feedback section for BML metrics
+              _buildFeedbackCard(),
               const SizedBox(height: 32),
             ],
           ),
@@ -535,10 +583,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                 const SizedBox(width: 8),
                 const Text(
                   'Business Type Comparison',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -594,7 +639,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: gymIsBetter 
+                  colors: gymIsBetter
                       ? [const Color(0xFF10B981), const Color(0xFF059669)]
                       : [const Color(0xFF8B5CF6), const Color(0xFF7C3AED)],
                 ),
@@ -653,9 +698,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isSelected 
-            ? _primaryBlue.withOpacity(0.1)
-            : Colors.grey[50],
+        color: isSelected ? _primaryBlue.withOpacity(0.1) : Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isSelected ? _primaryBlue : Colors.grey[200]!,
@@ -689,7 +732,10 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                     if (isSelected) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: _primaryBlue,
                           borderRadius: BorderRadius.circular(10),
@@ -707,7 +753,10 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                     if (isBetter) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFF10B981),
                           borderRadius: BorderRadius.circular(10),
@@ -745,7 +794,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: isBetter 
+                colors: isBetter
                     ? [color, color.withOpacity(0.7)]
                     : [Colors.grey[400]!, Colors.grey[300]!],
               ),
@@ -816,25 +865,38 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
             if (betterScore.positiveFactors.isNotEmpty) ...[
               const Text(
                 '✅ Reasons for Success:',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF10B981)),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: Color(0xFF10B981),
+                ),
               ),
               const SizedBox(height: 8),
-              ...betterScore.positiveFactors.map((factor) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        factor,
-                        style: TextStyle(color: Colors.grey[700], fontSize: 14),
+              ...betterScore.positiveFactors.map(
+                (factor) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.check_circle,
+                        color: Color(0xFF10B981),
+                        size: 18,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          factor,
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              )),
+              ),
               const SizedBox(height: 16),
             ],
 
@@ -842,25 +904,38 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
             if (worseScore.concerns.isNotEmpty) ...[
               Text(
                 '⚠️ Why $worseOption Scores Lower:',
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFFF59E0B)),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: Color(0xFFF59E0B),
+                ),
               ),
               const SizedBox(height: 8),
-              ...worseScore.concerns.map((concern) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.warning_amber, color: Color(0xFFF59E0B), size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        concern,
-                        style: TextStyle(color: Colors.grey[700], fontSize: 14),
+              ...worseScore.concerns.map(
+                (concern) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.warning_amber,
+                        color: Color(0xFFF59E0B),
+                        size: 18,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          concern,
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              )),
+              ),
               const SizedBox(height: 16),
             ],
 
@@ -938,20 +1013,72 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
   Widget _buildNearbyBusinessesCard(BEVSummary bev) {
     // Build list of business types with their counts
     final List<Map<String, dynamic>> businesses = [
-      {'icon': Icons.fitness_center, 'name': 'Gyms', 'count': bev.gymCount, 'color': const Color(0xFF10B981)},
-      {'icon': Icons.coffee, 'name': 'Cafes', 'count': bev.cafeCount, 'color': const Color(0xFF8B5CF6)},
-      {'icon': Icons.restaurant, 'name': 'Restaurants', 'count': bev.restaurantCount, 'color': const Color(0xFFF59E0B)},
-      {'icon': Icons.business, 'name': 'Offices', 'count': bev.officeCount, 'color': const Color(0xFF3B82F6)},
-      {'icon': Icons.school, 'name': 'Schools', 'count': bev.schoolCount, 'color': const Color(0xFFEC4899)},
-      {'icon': Icons.account_balance, 'name': 'Banks', 'count': bev.bankCount, 'color': const Color(0xFF6366F1)},
-      {'icon': Icons.local_hospital, 'name': 'Healthcare', 'count': bev.healthcareCount, 'color': const Color(0xFFEF4444)},
-      {'icon': Icons.directions_transit, 'name': 'Transit', 'count': bev.transitCount, 'color': const Color(0xFF14B8A6)},
-      {'icon': Icons.park, 'name': 'Parks', 'count': bev.parkCount, 'color': const Color(0xFF22C55E)},
-      {'icon': Icons.shopping_bag, 'name': 'Malls', 'count': bev.mallCount, 'color': const Color(0xFFF97316)},
+      {
+        'icon': Icons.fitness_center,
+        'name': 'Gyms',
+        'count': bev.gymCount,
+        'color': const Color(0xFF10B981),
+      },
+      {
+        'icon': Icons.coffee,
+        'name': 'Cafes',
+        'count': bev.cafeCount,
+        'color': const Color(0xFF8B5CF6),
+      },
+      {
+        'icon': Icons.restaurant,
+        'name': 'Restaurants',
+        'count': bev.restaurantCount,
+        'color': const Color(0xFFF59E0B),
+      },
+      {
+        'icon': Icons.business,
+        'name': 'Offices',
+        'count': bev.officeCount,
+        'color': const Color(0xFF3B82F6),
+      },
+      {
+        'icon': Icons.school,
+        'name': 'Schools',
+        'count': bev.schoolCount,
+        'color': const Color(0xFFEC4899),
+      },
+      {
+        'icon': Icons.account_balance,
+        'name': 'Banks',
+        'count': bev.bankCount,
+        'color': const Color(0xFF6366F1),
+      },
+      {
+        'icon': Icons.local_hospital,
+        'name': 'Healthcare',
+        'count': bev.healthcareCount,
+        'color': const Color(0xFFEF4444),
+      },
+      {
+        'icon': Icons.directions_transit,
+        'name': 'Transit',
+        'count': bev.transitCount,
+        'color': const Color(0xFF14B8A6),
+      },
+      {
+        'icon': Icons.park,
+        'name': 'Parks',
+        'count': bev.parkCount,
+        'color': const Color(0xFF22C55E),
+      },
+      {
+        'icon': Icons.shopping_bag,
+        'name': 'Malls',
+        'count': bev.mallCount,
+        'color': const Color(0xFFF97316),
+      },
     ];
 
     // Filter to only show businesses that exist in the area
-    final existingBusinesses = businesses.where((b) => (b['count'] as int) > 0).toList();
+    final existingBusinesses = businesses
+        .where((b) => (b['count'] as int) > 0)
+        .toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -976,23 +1103,17 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                 const SizedBox(width: 8),
                 const Text(
                   'Available Businesses in This Area',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
               'Total: ${bev.totalBusinesses} businesses • ${bev.incomeLevel}',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 13,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
             ),
             const SizedBox(height: 16),
-            
+
             if (existingBusinesses.isEmpty)
               Container(
                 padding: const EdgeInsets.all(16),
@@ -1021,19 +1142,27 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                 spacing: 8,
                 runSpacing: 8,
                 children: existingBusinesses.map((business) {
-                  final isCompetitor = 
-                      (widget.businessType.toLowerCase() == 'gym' && business['name'] == 'Gyms') ||
-                      (widget.businessType.toLowerCase() == 'cafe' && business['name'] == 'Cafes');
-                  
+                  final isCompetitor =
+                      (widget.businessType.toLowerCase() == 'gym' &&
+                          business['name'] == 'Gyms') ||
+                      (widget.businessType.toLowerCase() == 'cafe' &&
+                          business['name'] == 'Cafes');
+
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
-                      color: isCompetitor 
+                      color: isCompetitor
                           ? const Color(0xFFF59E0B).withOpacity(0.15)
                           : (business['color'] as Color).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
-                      border: isCompetitor 
-                          ? Border.all(color: const Color(0xFFF59E0B), width: 1.5)
+                      border: isCompetitor
+                          ? Border.all(
+                              color: const Color(0xFFF59E0B),
+                              width: 1.5,
+                            )
                           : null,
                     ),
                     child: Row(
@@ -1042,7 +1171,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                         Icon(
                           business['icon'] as IconData,
                           size: 18,
-                          color: isCompetitor 
+                          color: isCompetitor
                               ? const Color(0xFFF59E0B)
                               : business['color'] as Color,
                         ),
@@ -1051,7 +1180,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                           '${business['count']} ${business['name']}',
                           style: TextStyle(
                             fontWeight: FontWeight.w500,
-                            color: isCompetitor 
+                            color: isCompetitor
                                 ? const Color(0xFFF59E0B)
                                 : Colors.grey[800],
                             fontSize: 13,
@@ -1059,7 +1188,11 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                         ),
                         if (isCompetitor) ...[
                           const SizedBox(width: 4),
-                          const Icon(Icons.warning_rounded, size: 14, color: Color(0xFFF59E0B)),
+                          const Icon(
+                            Icons.warning_rounded,
+                            size: 14,
+                            color: Color(0xFFF59E0B),
+                          ),
                         ],
                       ],
                     ),
@@ -1097,20 +1230,28 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
     );
   }
 
-  Widget _buildMainCard(EnhancedRecommendation rec, CategoryScore selectedScore, bool isGoodChoice) {
+  Widget _buildMainCard(
+    EnhancedRecommendation rec,
+    CategoryScore selectedScore,
+    bool isGoodChoice,
+  ) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: isGoodChoice 
+          colors: isGoodChoice
               ? [const Color(0xFF10B981), const Color(0xFF059669)]
               : [const Color(0xFFF59E0B), const Color(0xFFD97706)],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: (isGoodChoice ? const Color(0xFF10B981) : const Color(0xFFF59E0B)).withOpacity(0.4),
+            color:
+                (isGoodChoice
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFF59E0B))
+                    .withOpacity(0.4),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -1131,7 +1272,9 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    widget.businessType == 'Gym' ? Icons.fitness_center : Icons.coffee,
+                    widget.businessType == 'Gym'
+                        ? Icons.fitness_center
+                        : Icons.coffee,
                     size: 40,
                     color: Colors.white,
                   ),
@@ -1139,7 +1282,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // Verdict
             Text(
               isGoodChoice ? '✓ Great Location!' : '⚠ Consider Alternative',
@@ -1151,7 +1294,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              isGoodChoice 
+              isGoodChoice
                   ? 'This area is ideal for a ${widget.businessType}'
                   : 'A ${rec.recommendation.bestCategory} might perform better here',
               style: TextStyle(
@@ -1161,7 +1304,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
-            
+
             // Score
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -1174,17 +1317,16 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                 children: [
                   Text(
                     'Score: ',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                   ),
                   Text(
                     '${(selectedScore.score * 100).toInt()}%',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
-                      color: isGoodChoice ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                      color: isGoodChoice
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFF59E0B),
                     ),
                   ),
                 ],
@@ -1220,50 +1362,75 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                 const SizedBox(width: 8),
                 const Text(
                   'Score Breakdown',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const SizedBox(height: 20),
             _buildScoreBar('Overall Score', score.score, _primaryBlue),
-            if (score.positiveFactors.isNotEmpty) ...[  
+            if (score.positiveFactors.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
                 'Positive Factors',
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
               ),
               const SizedBox(height: 8),
-              ...score.positiveFactors.map((factor) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(factor, style: TextStyle(color: Colors.grey[700], fontSize: 13))),
-                  ],
+              ...score.positiveFactors.map(
+                (factor) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle,
+                        color: Color(0xFF10B981),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          factor,
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              )),
+              ),
             ],
-            if (score.concerns.isNotEmpty) ...[  
+            if (score.concerns.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
                 'Concerns',
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
               ),
               const SizedBox(height: 8),
-              ...score.concerns.map((concern) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning, color: Color(0xFFF59E0B), size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(concern, style: TextStyle(color: Colors.grey[700], fontSize: 13))),
-                  ],
+              ...score.concerns.map(
+                (concern) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.warning,
+                        color: Color(0xFFF59E0B),
+                        size: 16,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          concern,
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              )),
+              ),
             ],
           ],
         ),
@@ -1308,8 +1475,9 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
   }
 
   Widget _buildAlternativeCard(EnhancedRecommendation rec) {
-    final alternativeScore = rec.recommendation.bestCategory.toLowerCase() == 'gym' 
-        ? rec.gym 
+    final alternativeScore =
+        rec.recommendation.bestCategory.toLowerCase() == 'gym'
+        ? rec.gym
         : rec.cafe;
 
     return Container(
@@ -1348,8 +1516,8 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
             Row(
               children: [
                 Icon(
-                  rec.recommendation.bestCategory == 'gym' 
-                      ? Icons.fitness_center 
+                  rec.recommendation.bestCategory == 'gym'
+                      ? Icons.fitness_center
                       : Icons.coffee,
                   size: 32,
                   color: const Color(0xFF10B981),
@@ -1405,61 +1573,68 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                 const SizedBox(width: 8),
                 const Text(
                   'Key Factors',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            if (score.rulesTriggered != null && score.rulesTriggered!.isNotEmpty)
-              ...score.rulesTriggered!.map((rule) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: rule.isPositive ? const Color(0xFF10B981).withOpacity(0.2) : const Color(0xFFF59E0B).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        rule.delta,
-                        style: TextStyle(
-                          color: rule.isPositive ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
+            if (score.rulesTriggered != null &&
+                score.rulesTriggered!.isNotEmpty)
+              ...score.rulesTriggered!.map(
+                (rule) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: rule.isPositive
+                              ? const Color(0xFF10B981).withOpacity(0.2)
+                              : const Color(0xFFF59E0B).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          rule.delta,
+                          style: TextStyle(
+                            color: rule.isPositive
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFF59E0B),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            rule.rule,
-                            style: TextStyle(
-                              color: Colors.grey[800],
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          if (rule.reason != null)
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              rule.reason!,
+                              rule.rule,
                               style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
+                                color: Colors.grey[800],
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                        ],
+                            if (rule.reason != null)
+                              Text(
+                                rule.reason!,
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ))
+              )
             else
               Text(
                 'No specific rules triggered',
@@ -1507,23 +1682,23 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Text(
                     'Powered by AI',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // Recommendation
             Text(
               insights.recommendation,
@@ -1533,7 +1708,7 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                 height: 1.5,
               ),
             ),
-            
+
             if (insights.keyFactors.isNotEmpty) ...[
               const SizedBox(height: 20),
               const Text(
@@ -1545,26 +1720,31 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                 ),
               ),
               const SizedBox(height: 8),
-              ...insights.keyFactors.map((opp) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('• ', style: TextStyle(color: _accentBlue, fontSize: 16)),
-                    Expanded(
-                      child: Text(
-                        opp,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 14,
+              ...insights.keyFactors.map(
+                (opp) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '• ',
+                        style: TextStyle(color: _accentBlue, fontSize: 16),
+                      ),
+                      Expanded(
+                        child: Text(
+                          opp,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 14,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              )),
+              ),
             ],
-            
+
             if (insights.risks.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
@@ -1576,24 +1756,29 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
                 ),
               ),
               const SizedBox(height: 8),
-              ...insights.risks.map((risk) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('• ', style: TextStyle(color: Colors.orange, fontSize: 16)),
-                    Expanded(
-                      child: Text(
-                        risk,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 14,
+              ...insights.risks.map(
+                (risk) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '• ',
+                        style: TextStyle(color: Colors.orange, fontSize: 16),
+                      ),
+                      Expanded(
+                        child: Text(
+                          risk,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 14,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              )),
+              ),
             ],
           ],
         ),
@@ -1625,6 +1810,167 @@ class _AnalysisResultsScreenState extends State<AnalysisResultsScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Feedback card for collecting user feedback (BML metrics)
+  Widget _buildFeedbackCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _feedbackSubmitted ? Icons.check_circle : Icons.feedback,
+                  color: _feedbackSubmitted
+                      ? const Color(0xFF10B981)
+                      : _primaryBlue,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _feedbackSubmitted
+                      ? 'Thanks for your feedback!'
+                      : 'Was this analysis helpful?',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _feedbackSubmitted
+                        ? const Color(0xFF10B981)
+                        : Colors.grey[800],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            if (!_feedbackSubmitted) ...[
+              Text(
+                'Your feedback helps us improve our recommendations',
+                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Thumbs Down button
+                  _buildFeedbackButton(
+                    icon: Icons.thumb_down_alt_outlined,
+                    label: 'Not Helpful',
+                    isPositive: false,
+                    color: Colors.red[400]!,
+                  ),
+                  const SizedBox(width: 24),
+                  // Thumbs Up button
+                  _buildFeedbackButton(
+                    icon: Icons.thumb_up_alt_outlined,
+                    label: 'Helpful',
+                    isPositive: true,
+                    color: const Color(0xFF10B981),
+                  ),
+                ],
+              ),
+            ] else ...[
+              Icon(
+                _isPositiveFeedback == true ? Icons.thumb_up : Icons.thumb_down,
+                size: 32,
+                color: _isPositiveFeedback == true
+                    ? const Color(0xFF10B981)
+                    : Colors.red[400],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeedbackButton({
+    required IconData icon,
+    required String label,
+    required bool isPositive,
+    required Color color,
+  }) {
+    return InkWell(
+      onTap: () => _submitFeedback(isPositive),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: color.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(12),
+          color: color.withOpacity(0.05),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 28, color: color),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _submitFeedback(bool isPositive) {
+    setState(() {
+      _feedbackSubmitted = true;
+      _isPositiveFeedback = isPositive;
+    });
+
+    // Track feedback to Firestore
+    _analyticsService.trackFeedback(
+      businessType: widget.businessType,
+      feedback: isPositive ? 'positive' : 'negative',
+      latitude: widget.latitude,
+      longitude: widget.longitude,
+      score: _recommendation?.recommendation.score ?? 0,
+    );
+
+    // Show thank you snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isPositive ? Icons.favorite : Icons.lightbulb,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              isPositive
+                  ? 'Thanks! We\'re glad it helped!'
+                  : 'Thanks! We\'ll work to improve.',
+            ),
+          ],
+        ),
+        backgroundColor: isPositive ? const Color(0xFF10B981) : _primaryBlue,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

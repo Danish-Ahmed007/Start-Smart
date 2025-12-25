@@ -45,6 +45,7 @@ DENSITY_POI_TYPES = {
     "cafes": ["cafe", "coffee_shop"],
     "bakeries": ["bakery"],
     "bars": ["bar", "night_club"],
+    "fast_food": ["meal_takeaway", "meal_delivery"],
     
     # Fitness & Health
     "gyms": ["gym", "health"],
@@ -61,6 +62,13 @@ DENSITY_POI_TYPES = {
     "malls": ["shopping_mall"],
     "stores": ["store", "supermarket", "convenience_store"],
     "banks": ["bank", "atm"],
+    "clothing": ["clothing_store", "shoe_store"],
+    "electronics": ["electronics_store"],
+    
+    # Services
+    "real_estate": ["real_estate_agency"],
+    "car_services": ["car_dealer", "car_repair", "car_wash"],
+    "laundry": ["laundry"],
     
     # Entertainment
     "cinemas": ["movie_theater"],
@@ -72,6 +80,45 @@ DENSITY_POI_TYPES = {
     
     # Residential indicators
     "residential": ["apartment", "residential"],
+}
+
+# Comprehensive 20+ business categories for detailed analysis
+BUSINESS_CATEGORIES = {
+    # Food & Beverage (6 categories)
+    "restaurants": ["restaurant", "food"],
+    "cafes": ["cafe", "coffee_shop", "coffee"],
+    "bakeries": ["bakery"],
+    "fast_food": ["meal_takeaway", "meal_delivery", "fast_food"],
+    "fine_dining": ["fine_dining"],
+    "bars_nightlife": ["bar", "night_club", "pub"],
+    
+    # Health & Fitness (4 categories)
+    "gyms_fitness": ["gym", "fitness", "health_club"],
+    "spas_salons": ["spa", "beauty_salon", "hair_care"],
+    "clinics_hospitals": ["doctor", "dentist", "clinic", "hospital", "medical"],
+    "pharmacies": ["pharmacy", "drugstore"],
+    
+    # Education (3 categories)
+    "schools": ["school", "primary_school", "secondary_school"],
+    "universities_colleges": ["university", "college"],
+    "tutoring_training": ["tutoring", "coaching", "training_center"],
+    
+    # Retail (5 categories)
+    "clothing_fashion": ["clothing_store", "shoe_store", "boutique"],
+    "electronics": ["electronics_store", "mobile_phone_store"],
+    "grocery_supermarket": ["supermarket", "grocery_or_supermarket", "convenience_store"],
+    "home_garden": ["home_goods_store", "furniture_store", "hardware_store"],
+    "general_retail": ["store", "shopping_mall", "department_store"],
+    
+    # Services (4 categories)
+    "banks_finance": ["bank", "atm", "accounting", "finance"],
+    "offices_corporate": ["office", "corporate_office", "coworking"],
+    "real_estate": ["real_estate_agency", "property"],
+    "car_services": ["car_dealer", "car_repair", "car_wash", "gas_station"],
+    
+    # Entertainment (2 categories)
+    "entertainment": ["movie_theater", "cinema", "amusement_park", "bowling_alley"],
+    "parks_recreation": ["park", "zoo", "stadium", "sports_complex"],
 }
 
 # Key amenities for distance features
@@ -159,6 +206,70 @@ class EconomicFeatures:
 
 
 @dataclass
+class CategoryCount:
+    """Single category with count and percentage."""
+    category: str
+    count: int
+    percentage: float
+    business_names: List[str] = field(default_factory=list)  # Sample business names
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "category": self.category,
+            "count": self.count,
+            "percentage": self.percentage,
+            "business_names": self.business_names[:5]  # Top 5 names only
+        }
+
+
+@dataclass
+class BusinessInfo:
+    """Basic info about a business."""
+    name: str
+    category: str
+    types: List[str]
+    rating: Optional[float]
+    reviews: Optional[int]
+    price_level: Optional[int]
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class BackingFactor:
+    """A data-backed insight for recommendations."""
+    factor: str  # e.g., "High foot traffic potential"
+    evidence: str  # e.g., "12 restaurants and 5 cafes in the area"
+    implication: str  # e.g., "Good for food-related businesses"
+    strength: str  # "strong", "moderate", "weak"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class AreaAnalysis:
+    """Comprehensive area analysis with categorized businesses."""
+    total_businesses: int = 0
+    top_5_categories: List[CategoryCount] = field(default_factory=list)
+    all_categories: Dict[str, int] = field(default_factory=dict)
+    business_list: List[BusinessInfo] = field(default_factory=list)
+    backing_factors: List[BackingFactor] = field(default_factory=list)
+    area_character: str = ""  # e.g., "Commercial hub", "Residential with retail"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "total_businesses": self.total_businesses,
+            "top_5_categories": [c.to_dict() for c in self.top_5_categories],
+            "all_categories": self.all_categories,
+            "business_list": [b.to_dict() for b in self.business_list[:20]],  # Limit for response size
+            "backing_factors": [f.to_dict() for f in self.backing_factors],
+            "area_character": self.area_character
+        }
+
+
+@dataclass
 class BusinessEnvironmentVector:
     """
     Complete Business Environment Vector for a location.
@@ -176,6 +287,9 @@ class BusinessEnvironmentVector:
     density: DensityFeatures = field(default_factory=DensityFeatures)
     distance: DistanceFeatures = field(default_factory=DistanceFeatures)
     economic: EconomicFeatures = field(default_factory=EconomicFeatures)
+    
+    # Enhanced area analysis with categories
+    area_analysis: AreaAnalysis = field(default_factory=AreaAnalysis)
     
     # Metadata
     generated_at: str = ""
@@ -198,6 +312,7 @@ class BusinessEnvironmentVector:
         result.update(self.density.to_dict())
         result.update(self.distance.to_dict())
         result.update(self.economic.to_dict())
+        result["area_analysis"] = self.area_analysis.to_dict()
         return result
     
     def to_prompt_format(self) -> str:
@@ -207,6 +322,31 @@ class BusinessEnvironmentVector:
             f"Location: ({self.center_lat:.6f}, {self.center_lon:.6f})",
             f"Analysis radius: {self.radius_meters}m",
             "",
+            "=== Area Analysis ===",
+            f"Total businesses in area: {self.area_analysis.total_businesses}",
+            f"Area Character: {self.area_analysis.area_character}",
+            "",
+            "Top 5 Business Categories (from actual data):",
+        ]
+        
+        for i, cat in enumerate(self.area_analysis.top_5_categories[:5], 1):
+            names_str = ", ".join(cat.business_names[:3]) if cat.business_names else ""
+            lines.append(f"  {i}. {cat.category}: {cat.count} businesses ({cat.percentage:.1f}%)")
+            if names_str:
+                lines.append(f"     Examples: {names_str}")
+        
+        # Add backing factors
+        lines.extend([
+            "",
+            "=== Data-Backed Insights ===",
+        ])
+        for factor in self.area_analysis.backing_factors:
+            lines.append(f"• [{factor.strength.upper()}] {factor.factor}")
+            lines.append(f"  Evidence: {factor.evidence}")
+            lines.append(f"  Implication: {factor.implication}")
+            lines.append("")
+        
+        lines.extend([
             "=== Density Features ===",
             f"Restaurants: {self.density.restaurants}",
             f"Cafes: {self.density.cafes}",
@@ -320,6 +460,9 @@ class BEVGenerator:
         # Compute economic features
         economic = self._compute_economic_features(all_places, radius_meters)
         
+        # Compute area analysis with business categorization
+        area_analysis = self._compute_area_analysis(all_places)
+        
         bev = BusinessEnvironmentVector(
             grid_id=grid_id,
             center_lat=center_lat,
@@ -328,6 +471,7 @@ class BEVGenerator:
             density=density,
             distance=distance,
             economic=economic,
+            area_analysis=area_analysis,
             api_calls_used=self._api_calls
         )
         
@@ -377,32 +521,70 @@ class BEVGenerator:
         lon: float,
         radius: int
     ) -> List[Dict]:
-        """Fetch all nearby places using multiple type queries."""
+        """
+        Fetch ALL nearby businesses comprehensively.
+        
+        Uses multiple approaches to ensure we capture all businesses:
+        1. Broad "establishment" search (catches most businesses)
+        2. Specific type searches for categories Google doesn't always include
+        3. Text search for additional coverage
+        """
         all_places = []
         seen_ids = set()
         
-        # Query for each POI type group
-        types_to_query = [
-            "restaurant", "cafe", "gym", "school", "university",
-            "shopping_mall", "store", "hospital", "bank",
-            "transit_station", "park", "movie_theater", "bar"
+        # --- APPROACH 1: Broad establishment search (gets most businesses) ---
+        broad_types = [
+            "establishment",  # Catches most commercial places
+            "point_of_interest",  # Generic POIs
+            "store",  # All retail stores
+            "food",  # All food establishments
         ]
         
-        for place_type in types_to_query:
+        for broad_type in broad_types:
             try:
-                results = self._nearby_search(lat, lon, radius, place_type)
-                
+                results = self._nearby_search(lat, lon, radius, broad_type)
                 for place in results:
                     place_id = place.get("place_id")
                     if place_id and place_id not in seen_ids:
                         seen_ids.add(place_id)
                         all_places.append(place)
-                        
+            except Exception as e:
+                self.logger.warning(f"Error fetching broad type {broad_type}: {e}")
+        
+        # --- APPROACH 2: Specific types to ensure coverage ---
+        # These ensure we don't miss important categories
+        specific_types = [
+            # Food & Beverage
+            "restaurant", "cafe", "bakery", "bar", "meal_takeaway",
+            # Health & Fitness
+            "gym", "spa", "doctor", "dentist", "hospital", "pharmacy",
+            # Education
+            "school", "university", "library",
+            # Retail
+            "shopping_mall", "supermarket", "clothing_store", "electronics_store",
+            # Services
+            "bank", "atm", "beauty_salon", "hair_care", "laundry",
+            # Entertainment
+            "movie_theater", "park", "bowling_alley", "night_club",
+            # Transport
+            "transit_station", "bus_station", "gas_station",
+            # Professional
+            "real_estate_agency", "insurance_agency", "lawyer",
+        ]
+        
+        for place_type in specific_types:
+            try:
+                results = self._nearby_search(lat, lon, radius, place_type)
+                for place in results:
+                    place_id = place.get("place_id")
+                    if place_id and place_id not in seen_ids:
+                        seen_ids.add(place_id)
+                        all_places.append(place)
             except Exception as e:
                 self.logger.warning(f"Error fetching {place_type}: {e}")
                 continue
         
-        self.logger.debug(f"Fetched {len(all_places)} unique places")
+        self.logger.info(f"Fetched {len(all_places)} unique businesses in {radius}m radius")
         return all_places
     
     def _nearby_search(
@@ -570,6 +752,261 @@ class BEVGenerator:
             economic.competition_density = round(len(places) / area_100m2, 4)
         
         return economic
+    
+    def _compute_area_analysis(self, places: List[Dict]) -> AreaAnalysis:
+        """
+        Compute comprehensive area analysis with business categorization.
+        
+        Categorizes ALL businesses into 20+ categories and returns
+        top 5 with counts and percentages, plus data-backed insights.
+        """
+        area = AreaAnalysis()
+        category_counts: Dict[str, int] = {cat: 0 for cat in BUSINESS_CATEGORIES.keys()}
+        category_businesses: Dict[str, List[str]] = {cat: [] for cat in BUSINESS_CATEGORIES.keys()}
+        business_list: List[BusinessInfo] = []
+        
+        for place in places:
+            place_types = set(place.get("types", []))
+            place_name = place.get("name", "Unknown")
+            
+            # Determine primary category for this business
+            assigned_category = "other"
+            for category, type_list in BUSINESS_CATEGORIES.items():
+                if any(t in place_types for t in type_list):
+                    assigned_category = category
+                    category_counts[category] += 1
+                    category_businesses[category].append(place_name)
+                    break
+            
+            # If no category matched, count as other
+            if assigned_category == "other":
+                if "other" not in category_counts:
+                    category_counts["other"] = 0
+                    category_businesses["other"] = []
+                category_counts["other"] += 1
+                category_businesses["other"].append(place_name)
+            
+            # Create business info
+            business_info = BusinessInfo(
+                name=place_name,
+                category=assigned_category,
+                types=list(place_types)[:5],  # Limit types stored
+                rating=place.get("rating"),
+                reviews=place.get("user_ratings_total"),
+                price_level=place.get("price_level")
+            )
+            business_list.append(business_info)
+        
+        area.total_businesses = len(places)
+        area.all_categories = category_counts
+        area.business_list = business_list
+        
+        # Sort and get top 5 categories
+        sorted_categories = sorted(
+            [(cat, count) for cat, count in category_counts.items() if count > 0],
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        total = area.total_businesses if area.total_businesses > 0 else 1
+        area.top_5_categories = [
+            CategoryCount(
+                category=cat,
+                count=count,
+                percentage=round((count / total) * 100, 1),
+                business_names=category_businesses.get(cat, [])[:5]
+            )
+            for cat, count in sorted_categories[:5]
+        ]
+        
+        # Generate backing factors from the data
+        area.backing_factors = self._generate_backing_factors(
+            category_counts, sorted_categories, total, places
+        )
+        
+        # Determine area character
+        area.area_character = self._determine_area_character(sorted_categories, total)
+        
+        return area
+    
+    def _generate_backing_factors(
+        self,
+        category_counts: Dict[str, int],
+        sorted_categories: List[tuple],
+        total: int,
+        places: List[Dict]
+    ) -> List[BackingFactor]:
+        """Generate data-backed factors for recommendations."""
+        factors = []
+        
+        # Count grouped categories
+        food_count = (category_counts.get("restaurants", 0) + 
+                      category_counts.get("cafes_coffee", 0) + 
+                      category_counts.get("bakery_desserts", 0))
+        fitness_count = (category_counts.get("gyms_fitness", 0) + 
+                         category_counts.get("spa_wellness", 0))
+        office_count = (category_counts.get("offices_corporate", 0) + 
+                        category_counts.get("banks_finance", 0))
+        education_count = (category_counts.get("schools", 0) + 
+                           category_counts.get("universities_colleges", 0) +
+                           category_counts.get("tutoring_training", 0))
+        retail_count = (category_counts.get("clothing_fashion", 0) +
+                        category_counts.get("electronics", 0) +
+                        category_counts.get("grocery_supermarket", 0) +
+                        category_counts.get("general_retail", 0))
+        entertainment_count = (category_counts.get("entertainment", 0) +
+                               category_counts.get("bars_nightlife", 0))
+        
+        # 1. Food density factor
+        if food_count >= 8:
+            factors.append(BackingFactor(
+                factor="High food establishment density",
+                evidence=f"{food_count} food businesses nearby ({category_counts.get('restaurants', 0)} restaurants, {category_counts.get('cafes_coffee', 0)} cafes)",
+                implication="Indicates high foot traffic and food-seeking customers. May mean saturation for new food businesses, but proves demand exists.",
+                strength="strong"
+            ))
+        elif food_count >= 4:
+            factors.append(BackingFactor(
+                factor="Moderate food scene",
+                evidence=f"{food_count} food businesses in the area",
+                implication="Room for differentiated food concepts. Customers already visit for dining.",
+                strength="moderate"
+            ))
+        elif food_count < 2:
+            factors.append(BackingFactor(
+                factor="Food gap opportunity",
+                evidence=f"Only {food_count} food businesses nearby",
+                implication="Potential unserved demand for food options. Could be first-mover advantage.",
+                strength="moderate"
+            ))
+        
+        # 2. Fitness factor (helps determine gym viability)
+        if fitness_count >= 3:
+            factors.append(BackingFactor(
+                factor="Competitive fitness market",
+                evidence=f"{fitness_count} fitness/wellness businesses ({category_counts.get('gyms_fitness', 0)} gyms, {category_counts.get('spa_wellness', 0)} spas)",
+                implication="High gym competition. New gym needs strong differentiation (specialty, price, equipment).",
+                strength="strong"
+            ))
+        elif fitness_count == 0:
+            factors.append(BackingFactor(
+                factor="Fitness gap",
+                evidence="No gyms or fitness centers in the area",
+                implication="Potential opportunity for fitness business if population supports it.",
+                strength="moderate"
+            ))
+        
+        # 3. Office/Professional presence
+        if office_count >= 5:
+            factors.append(BackingFactor(
+                factor="Strong professional presence",
+                evidence=f"{office_count} offices/banks in area",
+                implication="Daytime working population needs lunch spots, cafes, quick services. B2B opportunity.",
+                strength="strong"
+            ))
+        elif office_count >= 2:
+            factors.append(BackingFactor(
+                factor="Some professional activity",
+                evidence=f"{office_count} professional establishments nearby",
+                implication="Mix of residential and professional. Good for services catering to both.",
+                strength="moderate"
+            ))
+        
+        # 4. Education factor
+        if education_count >= 3:
+            factors.append(BackingFactor(
+                factor="Education hub",
+                evidence=f"{education_count} educational institutions ({category_counts.get('schools', 0)} schools, {category_counts.get('universities_colleges', 0)} universities)",
+                implication="Student population creates demand for affordable food, stationery, tutoring, entertainment.",
+                strength="strong"
+            ))
+        
+        # 5. Retail density
+        if retail_count >= 6:
+            factors.append(BackingFactor(
+                factor="Commercial retail hub",
+                evidence=f"{retail_count} retail stores in the area",
+                implication="High shopping traffic. Service businesses can benefit from footfall.",
+                strength="moderate"
+            ))
+        
+        # 6. Calculate average ratings and reviews
+        ratings = [p.get("rating") for p in places if p.get("rating")]
+        reviews = [p.get("user_ratings_total", 0) for p in places if p.get("user_ratings_total")]
+        
+        if ratings:
+            avg_rating = sum(ratings) / len(ratings)
+            if avg_rating >= 4.2:
+                factors.append(BackingFactor(
+                    factor="High quality area",
+                    evidence=f"Average business rating: {avg_rating:.1f}/5.0",
+                    implication="Customers expect quality. Premium positioning may work better than budget.",
+                    strength="moderate"
+                ))
+        
+        if reviews:
+            avg_reviews = sum(reviews) / len(reviews)
+            if avg_reviews >= 100:
+                factors.append(BackingFactor(
+                    factor="Highly engaged customers",
+                    evidence=f"Average {avg_reviews:.0f} reviews per business",
+                    implication="Active customer base that reviews. Good word-of-mouth potential.",
+                    strength="moderate"
+                ))
+        
+        # 7. Overall density factor
+        if total >= 30:
+            factors.append(BackingFactor(
+                factor="High business density zone",
+                evidence=f"{total} total businesses in search radius",
+                implication="Established commercial area with proven foot traffic.",
+                strength="strong"
+            ))
+        elif total <= 10:
+            factors.append(BackingFactor(
+                factor="Low business density",
+                evidence=f"Only {total} businesses in the area",
+                implication="May be emerging area or residential. Lower competition but unproven demand.",
+                strength="weak"
+            ))
+        
+        return factors
+    
+    def _determine_area_character(
+        self,
+        sorted_categories: List[tuple],
+        total: int
+    ) -> str:
+        """Determine the overall character of the area."""
+        if total == 0:
+            return "Undeveloped area"
+        
+        top_category = sorted_categories[0][0] if sorted_categories else "unknown"
+        top_pct = (sorted_categories[0][1] / total * 100) if sorted_categories else 0
+        
+        # Character mapping based on dominant category
+        character_map = {
+            "restaurants": "Food & dining hub",
+            "cafes_coffee": "Cafe culture area",
+            "general_retail": "Retail/shopping zone",
+            "grocery_supermarket": "Residential with daily needs",
+            "offices_corporate": "Business district",
+            "banks_finance": "Financial services hub",
+            "schools": "Education-focused neighborhood",
+            "universities_colleges": "University area",
+            "gyms_fitness": "Health-conscious community",
+            "healthcare_medical": "Healthcare corridor",
+            "bars_nightlife": "Entertainment district",
+        }
+        
+        character = character_map.get(top_category, "Mixed-use area")
+        
+        if top_pct >= 40:
+            return f"{character} (strongly dominant)"
+        elif top_pct >= 25:
+            return f"{character} with diverse offerings"
+        else:
+            return "Diverse mixed-use area"
     
     def _haversine_distance(
         self,
