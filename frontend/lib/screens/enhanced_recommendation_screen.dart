@@ -1,8 +1,9 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import '../services/analytics_service.dart';
+import '../widgets/osm_map.dart';
 import 'analysis_results_screen.dart';
 import 'enhanced_analysis_results_screen.dart';
 
@@ -26,8 +27,8 @@ class _EnhancedRecommendationScreenState
   // Block 2: 24.8100-24.8220, 67.0200-67.0360
   // Block 5: 24.8010-24.8130, 67.0320-67.0440
   static final LatLngBounds _allowedBounds = LatLngBounds(
-    southwest: const LatLng(24.8010, 67.0200), // Block 5 SW corner
-    northeast: const LatLng(24.8220, 67.0440), // Block 2 NE corner
+    const LatLng(24.8010, 67.0200), // Block 5 SW corner
+    const LatLng(24.8220, 67.0440), // Block 2 NE corner
   );
 
   // Available business types
@@ -44,8 +45,7 @@ class _EnhancedRecommendationScreenState
   List<String> _filteredBusinessTypes = [];
   bool _showSuggestions = false;
 
-  GoogleMapController? _mapController;
-  final Completer<GoogleMapController> _controllerCompleter = Completer();
+  final MapController _mapController = MapController();
 
   // Radius options - reduced for focused analysis
   final List<double> _radiusOptions = [100, 150, 200, 300];
@@ -199,50 +199,7 @@ class _EnhancedRecommendationScreenState
     setState(() {
       _selectedLocation = _restrictedAreaCenter;
     });
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(
-        _restrictedAreaCenter,
-        16,
-      ), // Higher zoom for smaller area
-    );
-  }
-
-  Set<Marker> _buildMarkers() {
-    return {
-      Marker(
-        markerId: const MarkerId('selected_location'),
-        position: _selectedLocation,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        infoWindow: InfoWindow(
-          title: 'Selected Location',
-          snippet:
-              '${_selectedLocation.latitude.toStringAsFixed(4)}, ${_selectedLocation.longitude.toStringAsFixed(4)}',
-        ),
-      ),
-    };
-  }
-
-  Set<Circle> _buildCircles() {
-    return {
-      // Analysis radius circle
-      Circle(
-        circleId: const CircleId('analysis_radius'),
-        center: _selectedLocation,
-        radius: _selectedRadius,
-        fillColor: const Color(0xFF1E40AF).withOpacity(0.15),
-        strokeColor: const Color(0xFF1E40AF),
-        strokeWidth: 2,
-      ),
-      // Boundary indicator for allowed area
-      Circle(
-        circleId: const CircleId('allowed_boundary'),
-        center: _restrictedAreaCenter,
-        radius: 750, // Approximate radius covering Block 2 & 5
-        fillColor: Colors.green.withOpacity(0.05),
-        strokeColor: Colors.green.withOpacity(0.3),
-        strokeWidth: 2,
-      ),
-    };
+    _mapController.move(_restrictedAreaCenter, 16);
   }
 
   @override
@@ -260,19 +217,14 @@ class _EnhancedRecommendationScreenState
         },
         child: Stack(
           children: [
-            // Full-screen Google Map
-            GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: _restrictedAreaCenter,
-                zoom: 16, // Higher zoom for focused area
-              ),
-              onMapCreated: (GoogleMapController controller) {
-                _mapController = controller;
-                if (!_controllerCompleter.isCompleted) {
-                  _controllerCompleter.complete(controller);
-                }
-              },
-              onTap: (position) {
+            // Full-screen OpenStreetMap view
+            OpenStreetMapView(
+              initialLocation: _restrictedAreaCenter,
+              restrictedAreaCenter: _restrictedAreaCenter,
+              allowedBounds: _allowedBounds,
+              radius: _selectedRadius,
+              mapController: _mapController,
+              onLocationSelected: (position) {
                 // Close suggestions if open
                 if (_showSuggestions) {
                   setState(() {
@@ -281,15 +233,6 @@ class _EnhancedRecommendationScreenState
                 }
                 _onMapTap(position);
               },
-              markers: _buildMarkers(),
-              circles: _buildCircles(),
-              myLocationEnabled: false,
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
-              mapToolbarEnabled: false,
-              // Restrict camera to allowed bounds
-              cameraTargetBounds: CameraTargetBounds(_allowedBounds),
-              minMaxZoomPreference: const MinMaxZoomPreference(14, 18),
             ),
 
             // Top bar with back button, title and search
